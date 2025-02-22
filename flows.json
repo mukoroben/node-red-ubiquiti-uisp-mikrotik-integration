@@ -1,1 +1,912 @@
-[]
+[
+    {
+        "id": "6a1a2cb5a2fc32d1",
+        "type": "tab",
+        "label": "Extract Suspended Clients",
+        "disabled": false,
+        "info": "Gets router devices for clients with suspended services and stores in MySQL with enhanced error handling and monitoring"
+    },
+    {
+        "id": "47a01a4148ab2766",
+        "type": "tab",
+        "label": "Sync Suspended Users",
+        "disabled": false,
+        "info": "Synchronizes suspended UCRM clients with MikroTik BLOCKED_USERS address list with enhanced monitoring and notifications"
+    },
+    {
+        "id": "2d25f11dcc6f9c5c",
+        "type": "MySQLdatabase",
+        "name": "mysql",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "ucrm",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "d9322b887566b451",
+        "type": "mikrotik-device",
+        "host": "172.18.10.4",
+        "port": 8728,
+        "username": null,
+        "password": null,
+        "ssl": "api"
+    },
+    {
+        "id": "7b8c32ff168b2a55",
+        "type": "inject",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Manual Trigger",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            },
+            {
+                "p": "processingTime",
+                "v": "{\"startTime\": \"\"}",
+                "vt": "json"
+            }
+        ],
+        "repeat": "3600",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "start_processing",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 120,
+        "wires": [
+            [
+                "2839775edfc350ba"
+            ]
+        ]
+    },
+    {
+        "id": "2839775edfc350ba",
+        "type": "http request",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Get UNMS Sites",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://customercare.cozinternet.com/nms/api/v2.1/sites",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "bearer",
+        "senderr": true,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "X-Auth-Token",
+                "valueType": "other",
+                "valueValue": "6216edd5-da73-45cb-9954-62b616b5e6c2"
+            }
+        ],
+        "x": 140,
+        "y": 240,
+        "wires": [
+            [
+                "de42a0fef2f62196"
+            ]
+        ]
+    },
+    {
+        "id": "de42a0fef2f62196",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Store Sites",
+        "func": "if (!msg.payload) {\n    node.status({fill:\"red\", shape:\"ring\", text:\"No data received\"});\n    node.error('No payload received from sites API');\n    return null;\n}\n\ntry {\n    msg.sites = msg.payload;\n    msg.processingStats = {\n        sitesReceived: msg.sites.length,\n        timestamp: new Date().toISOString()\n    };\n    \n    node.status({fill:\"green\", shape:\"dot\", text:`Stored ${msg.sites.length} sites`});\n    return msg;\n} catch(err) {\n    node.status({fill:\"red\", shape:\"ring\", text:\"Processing error\"});\n    node.error('Error processing sites data: ' + err.message);\n    return null;\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 290,
+        "y": 480,
+        "wires": [
+            [
+                "6e92ffd700fb643f"
+            ]
+        ]
+    },
+    {
+        "id": "6e92ffd700fb643f",
+        "type": "http request",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Get UNMS Devices",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://customercare.cozinternet.com/nms/api/v2.1/devices",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "bearer",
+        "senderr": true,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "X-Auth-Token",
+                "valueType": "other",
+                "valueValue": "6216edd5-da73-45cb-9954-62b616b5e6c2"
+            }
+        ],
+        "x": 450,
+        "y": 340,
+        "wires": [
+            [
+                "63765a32bac52a60"
+            ]
+        ]
+    },
+    {
+        "id": "63765a32bac52a60",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Store Devices",
+        "func": "console.log('Processing devices data...');\n\nif (!msg.payload) {\n    node.status({fill:\"red\", shape:\"ring\", text:\"No devices data\"});\n    node.error('No payload received from devices API');\n    return null;\n}\n\ntry {\n    msg.devices = Array.isArray(msg.payload.data) ? msg.payload.data : \n                  Array.isArray(msg.payload) ? msg.payload : [];\n    \n    msg.processingStats.devicesReceived = msg.devices.length;\n    \n    node.status({fill:\"green\", shape:\"dot\", text:`Stored ${msg.devices.length} devices`});\n    return msg;\n} catch(err) {\n    node.status({fill:\"red\", shape:\"ring\", text:\"Processing error\"});\n    node.error('Error processing devices data: ' + err.message);\n    return null;\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 500,
+        "y": 160,
+        "wires": [
+            [
+                "bb51a551f961a7b3"
+            ]
+        ]
+    },
+    {
+        "id": "bb51a551f961a7b3",
+        "type": "http request",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Get UCRM Clients",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "https://customercare.cozinternet.com/api/v1.0/clients",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "basic",
+        "senderr": true,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "X-Auth-Token",
+                "valueType": "other",
+                "valueValue": "6216edd5-da73-45cb-9954-62b616b5e6c2"
+            }
+        ],
+        "x": 690,
+        "y": 320,
+        "wires": [
+            [
+                "8a7ba7c42f5459bc"
+            ]
+        ]
+    },
+    {
+        "id": "8a7ba7c42f5459bc",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Process and Combine Data",
+        "func": "node.status({fill:\"blue\", shape:\"dot\", text:\"Processing...\"});\n\ntry {\n    // Validate input data\n    if (!Array.isArray(msg.payload) || !Array.isArray(msg.sites) || !Array.isArray(msg.devices)) {\n        throw new Error('Invalid data structure received');\n    }\n\n    // Process suspended clients\n    const suspendedClients = msg.payload.filter(client => client.hasSuspendedService === true);\n    const suspendedClientIds = new Set(suspendedClients.map(client => client.id.toString()));\n    \n    // Process sites\n    const relevantSites = msg.sites.filter(site => {\n        const clientId = site.ucrm?.client?.id;\n        return clientId && suspendedClientIds.has(clientId);\n    });\n\n    const siteMap = new Map(relevantSites.map(site => [site.id, site]));\n    \n    // Process devices\n    const relevantDevices = msg.devices\n        .filter(device => {\n            const siteId = device.identification?.site?.id;\n            const isRouter = device.identification?.role === 'router';\n            return siteId && siteMap.has(siteId) && isRouter;\n        })\n        .map(device => ({\n            device_id: device.identification.id,\n            device_name: device.identification.name,\n            device_role: device.identification.role,\n            device_status: device.overview.status,\n            ip_address: device.ipAddress,\n            site_id: device.identification.site.id,\n            site_name: siteMap.get(device.identification.site.id).identification.name,\n            client_id: siteMap.get(device.identification.site.id).ucrm.client.id,\n            client_name: siteMap.get(device.identification.site.id).ucrm.client.name\n        }));\n\n    // Update processing stats\n    msg.processingStats.suspendedClients = suspendedClients.length;\n    msg.processingStats.relevantSites = relevantSites.length;\n    msg.processingStats.relevantDevices = relevantDevices.length;\n    \n    msg.payload = relevantDevices;\n    \n    node.status({fill:\"green\", shape:\"dot\", text:`Processed ${relevantDevices.length} devices`});\n    return msg;\n\n} catch(err) {\n    node.status({fill:\"red\", shape:\"ring\", text:\"Error: \" + err.message});\n    node.error('Processing error: ' + err.message);\n    return null;\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 820,
+        "y": 220,
+        "wires": [
+            [
+                "prepare_truncate"
+            ]
+        ]
+    },
+    {
+        "id": "7f02820b1a891c9b",
+        "type": "mysql",
+        "z": "6a1a2cb5a2fc32d1",
+        "mydb": "2d25f11dcc6f9c5c",
+        "name": "Insert Data",
+        "x": 1490,
+        "y": 300,
+        "wires": [
+            [
+                "9c7d5c3a2cf93df9",
+                "format_email",
+                "d91e93f6ead79519"
+            ]
+        ]
+    },
+    {
+        "id": "9c7d5c3a2cf93df9",
+        "type": "debug",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Process Complete",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1940,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "d53239be58d57dbf",
+        "type": "status",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Monitor Node Status",
+        "scope": [
+            "de42a0fef2f62196",
+            "63765a32bac52a60",
+            "8a7ba7c42f5459bc",
+            "1c6623b031e42645",
+            "7f02820b1a891c9b"
+        ],
+        "x": 960,
+        "y": 120,
+        "wires": [
+            [
+                "c60453485204ef17"
+            ]
+        ]
+    },
+    {
+        "id": "c60453485204ef17",
+        "type": "debug",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Status Updates",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1160,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "65895664ed1a53c0",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Generate Summary",
+        "func": "// Create process summary\nconst summary = {\n    timestamp: new Date().toISOString(),\n    stats: msg.processingStats,\n    duration: `${msg.processingStats.totalDuration / 1000} seconds`,\n    status: 'Complete'\n};\n\n// Store summary in global context\ncontext.global.set('lastProcessRun', summary);\n\nreturn { payload: summary };",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1630,
+        "y": 380,
+        "wires": [
+            [
+                "86bb1fb6865ddefe"
+            ]
+        ]
+    },
+    {
+        "id": "86bb1fb6865ddefe",
+        "type": "debug",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Process Summary",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1900,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "error_handler",
+        "type": "catch",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Error Handler",
+        "scope": [
+            "store_sites",
+            "store_devices",
+            "process_data",
+            "prepare_mysql",
+            "mysql_insert"
+        ],
+        "uncaught": false,
+        "x": 950,
+        "y": 40,
+        "wires": [
+            [
+                "format_error",
+                "debug_error"
+            ]
+        ]
+    },
+    {
+        "id": "format_error",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Format Error Message",
+        "func": "// Create formatted error message\nconst errorMsg = {\n    timestamp: new Date().toISOString(),\n    error: msg.error.message || 'Unknown error',\n    node: msg.error.source?.name || 'Unknown node',\n    details: msg.error.toString(),\n    payload: msg.payload\n};\n\n// Store in flow context for tracking\nflow.set('lastError', errorMsg);\n\nreturn { payload: errorMsg };",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1150,
+        "y": 40,
+        "wires": [
+            [
+                "debug_error"
+            ]
+        ]
+    },
+    {
+        "id": "debug_error",
+        "type": "debug",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Error Debug",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1350,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "prepare_mysql",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Prepare MySQL Insert",
+        "func": "// Prepare MySQL Insert Function\nif (!Array.isArray(msg.payload) || msg.payload.length === 0) {\n    node.status({ fill: \"yellow\", shape: \"ring\", text: \"No data to insert\" });\n    return null;\n}\n\ntry {\n    // Prepare batch insert\n    const values = msg.payload.map(device => [\n        device.device_id,\n        device.device_name,\n        device.device_role,\n        device.device_status,\n        device.ip_address,\n        device.site_id,\n        device.site_name,\n        device.client_id,\n        device.client_name\n    ]);\n\n    // First output - MySQL query\n    const mysqlMsg = {\n        topic: 'INSERT INTO suspended_router_devices ' +\n            '(device_id, device_name, device_role, device_status, ' +\n            'ip_address, site_id, site_name, client_id, client_name) ' +\n            'VALUES ?',\n        payload: [values],\n        processingStats: msg.processingStats // Preserve the stats\n    };\n\n    // Add completion time to stats\n    mysqlMsg.processingStats.completionTime = new Date().toISOString();\n    mysqlMsg.processingStats.totalDuration = Date.now() - new Date(msg.processingTime?.startTime || Date.now()).getTime();\n\n    node.status({ fill: \"green\", shape: \"dot\", text: `Ready to insert ${values.length} records` });\n    return mysqlMsg;\n\n} catch (err) {\n    node.status({ fill: \"red\", shape: \"ring\", text: \"Error preparing insert\" });\n    node.error('Error preparing MySQL insert: ' + err.message);\n    return null;\n}\n",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1140,
+        "y": 340,
+        "wires": [
+            [
+                "7f02820b1a891c9b"
+            ],
+            [
+                "completion_debug"
+            ]
+        ]
+    },
+    {
+        "id": "completion_debug",
+        "type": "debug",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Completion Summary",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1380,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "prepare_truncate",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Prepare Truncate",
+        "func": "// Store the original payload and stats for later use\nmsg.originalPayload = msg.payload;\nmsg.originalStats = msg.processingStats;\n\n// Set up truncate command\nmsg.topic = 'TRUNCATE TABLE suspended_router_devices';\nnode.status({fill:\"blue\", shape:\"dot\", text:\"Preparing to truncate table\"});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 830,
+        "y": 540,
+        "wires": [
+            [
+                "execute_truncate"
+            ]
+        ]
+    },
+    {
+        "id": "execute_truncate",
+        "type": "mysql",
+        "z": "6a1a2cb5a2fc32d1",
+        "mydb": "2d25f11dcc6f9c5c",
+        "name": "Execute Truncate",
+        "x": 870,
+        "y": 800,
+        "wires": [
+            [
+                "restore_payload"
+            ]
+        ]
+    },
+    {
+        "id": "restore_payload",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Restore Payload",
+        "func": "// Restore the original payload and stats\nmsg.payload = msg.originalPayload;\nmsg.processingStats = msg.originalStats;\n\n// Clean up temporary storage\ndelete msg.originalPayload;\ndelete msg.originalStats;\n\nnode.status({fill:\"green\", shape:\"dot\", text:\"Table truncated\"});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1150,
+        "y": 760,
+        "wires": [
+            [
+                "prepare_mysql"
+            ]
+        ]
+    },
+    {
+        "id": "format_email",
+        "type": "function",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "Format Email Content",
+        "func": "// Only format the email content, remove email property settings\nfunction formatDate(dateStr) {\n    return new Date(dateStr).toLocaleString();\n}\n\n// Add debug logging to inspect the incoming message\nconsole.log('Incoming message structure:', JSON.stringify(msg, null, 2));\n\n// Ensure processingStats exists\nconst stats = msg.processingStats || {};\nconsole.log('Processing stats:', stats);\n\n// Create HTML email content with safe access to properties\nconst htmlContent = `\n<h2>UCRM Suspended Clients Process Summary</h2>\n<p>Process completed at: ${formatDate(new Date())}</p>\n\n<h3>Processing Statistics:</h3>\n<table style=\"border-collapse: collapse; width: 100%; max-width: 600px;\">\n    <tr style=\"background-color: #f2f2f2;\">\n        <th style=\"border: 1px solid #ddd; padding: 8px; text-align: left;\">Metric</th>\n        <th style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">Count</th>\n    </tr>\n    <tr>\n        <td style=\"border: 1px solid #ddd; padding: 8px;\">Suspended Clients Found</td>\n        <td style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">${stats.suspendedClients || 0}</td>\n    </tr>\n    <tr>\n        <td style=\"border: 1px solid #ddd; padding: 8px;\">Relevant Sites</td>\n        <td style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">${stats.relevantSites || 0}</td>\n    </tr>\n    <tr>\n        <td style=\"border: 1px solid #ddd; padding: 8px;\">Router Devices Updated</td>\n        <td style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">${stats.relevantDevices || 0}</td>\n    </tr>\n</table>\n\n<h3>Processing Details:</h3>\n<ul>\n    <li>Start Time: ${stats.timestamp ? formatDate(stats.timestamp) : 'Not available'}</li>\n    <li>Completion Time: ${stats.completionTime ? formatDate(stats.completionTime) : 'Not available'}</li>\n    <li>Total Duration: ${stats.totalDuration ? (stats.totalDuration / 1000).toFixed(2) + ' seconds' : 'Not available'}</li>\n</ul>\n\n<p><em>Note: This is an automated message from the UCRM Suspended Clients Process.</em></p>\n`;\n\n// Only set the payload to the HTML content\nmsg.payload = htmlContent;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1600,
+        "y": 180,
+        "wires": [
+            [
+                "send_email"
+            ]
+        ]
+    },
+    {
+        "id": "send_email",
+        "type": "e-mail",
+        "z": "6a1a2cb5a2fc32d1",
+        "d": true,
+        "server": "mail.smtp2go.com",
+        "port": "2525",
+        "authtype": "BASIC",
+        "saslformat": false,
+        "token": "oauth2Response.access_token",
+        "secure": false,
+        "tls": false,
+        "name": "support@cozinternet.com",
+        "dname": "Send Email",
+        "x": 1810,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "d91e93f6ead79519",
+        "type": "link out",
+        "z": "6a1a2cb5a2fc32d1",
+        "name": "To Synch Users",
+        "mode": "link",
+        "links": [
+            "93367cf16bc0b95e"
+        ],
+        "x": 1685,
+        "y": 620,
+        "wires": []
+    },
+    {
+        "id": "93367cf16bc0b95e",
+        "type": "link in",
+        "z": "47a01a4148ab2766",
+        "name": "From MySQL Insert",
+        "links": [
+            "d91e93f6ead79519"
+        ],
+        "x": 295,
+        "y": 60,
+        "wires": [
+            [
+                "fd4b11fd61a98474"
+            ]
+        ]
+    },
+    {
+        "id": "2af6c1b5be8da9e9",
+        "type": "inject",
+        "z": "47a01a4148ab2766",
+        "name": "Manual Trigger",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 280,
+        "wires": [
+            [
+                "fd4b11fd61a98474"
+            ]
+        ]
+    },
+    {
+        "id": "fd4b11fd61a98474",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Initialize Process",
+        "func": "// Initialize processing stats\nconst processStats = {\n    startTime: new Date().toISOString(),\n    suspendedIPs: 0,\n    currentBlockedIPs: 0,\n    ipsToAdd: 0,\n    ipsToRemove: 0,\n    completedAdds: 0,\n    completedRemoves: 0,\n    status: 'Started'\n};\n\n// Store in flow context\nflow.set('processStats', processStats);\n\n// Set initial status\nnode.status({fill:\"blue\", shape:\"dot\", text:\"Process started\"});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 160,
+        "wires": [
+            [
+                "0fa20b7fce0de8ca"
+            ]
+        ]
+    },
+    {
+        "id": "0fa20b7fce0de8ca",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Prepare MySQL Query",
+        "func": "msg.topic = 'SELECT ip_address FROM suspended_router_devices where ip_address is not null;';\n\nnode.status({fill:\"blue\", shape:\"dot\", text:\"Querying suspended IPs\"});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 620,
+        "y": 120,
+        "wires": [
+            [
+                "b18133f5c2db106b"
+            ]
+        ]
+    },
+    {
+        "id": "b18133f5c2db106b",
+        "type": "mysql",
+        "z": "47a01a4148ab2766",
+        "mydb": "2d25f11dcc6f9c5c",
+        "name": "Get Suspended Users",
+        "x": 920,
+        "y": 140,
+        "wires": [
+            [
+                "8be4ded133e44d64"
+            ]
+        ]
+    },
+    {
+        "id": "8be4ded133e44d64",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Store Suspended IPs",
+        "func": "// Get process stats\nlet stats = flow.get('processStats') || {};\n\n// Store suspended IPs in flow context\nlet suspendedIPs = msg.payload.map(row => row.ip_address);\nflow.set('suspendedIPs', suspendedIPs);\n\n// Update stats\nstats.suspendedIPs = suspendedIPs.length;\nstats.status = 'Retrieved suspended IPs';\nflow.set('processStats', stats);\n\n// Update status\nnode.status({fill:\"blue\", shape:\"dot\", text:`Found ${suspendedIPs.length} suspended IPs`});\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1220,
+        "y": 140,
+        "wires": [
+            [
+                "e6c698100829a38c"
+            ]
+        ]
+    },
+    {
+        "id": "e6c698100829a38c",
+        "type": "mikrotik",
+        "z": "47a01a4148ab2766",
+        "device": "d9322b887566b451",
+        "name": "Get Address List",
+        "action": "9",
+        "command": "/ip/firewall/address-list/print",
+        "command-type": "str",
+        "x": 1480,
+        "y": 140,
+        "wires": [
+            [
+                "55af843b66261246",
+                "07283834c3fc7ed2"
+            ]
+        ]
+    },
+    {
+        "id": "55af843b66261246",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Compare and Split Actions",
+        "func": "// Get process stats\nlet stats = flow.get('processStats') || {};\n\n// Get suspended IPs from flow context \nlet suspendedIPs = flow.get('suspendedIPs') || [];\n\n// Extract current blocked entries \nlet allEntries = msg.payload || [];\n\n// Filter for BLOCKED_USERS and extract IPs \nlet blockedEntries = allEntries.filter(entry => entry.list === 'BLOCKED_USERS');\nlet blockedIPs = blockedEntries.map(entry => entry.address);\n\n// Find IPs to add (in suspended but not in blocked) \nlet ipsToAdd = suspendedIPs.filter(ip => !blockedIPs.includes(ip));\n\n// Find entries to remove (in blocked but not in suspended) \nlet entriesToRemove = blockedEntries.filter(entry =>\n    !suspendedIPs.includes(entry.address)\n);\n\n// Store in flow context \nflow.set('ipsToAdd', ipsToAdd);\nflow.set('entriesToRemove', entriesToRemove);\n\n// Update process stats\nstats.currentBlockedIPs = blockedIPs.length;\nstats.ipsToAdd = ipsToAdd.length;\nstats.ipsToRemove = entriesToRemove.length;\nstats.status = 'Comparison completed';\nflow.set('processStats', stats);\n\n// Debug logging \nnode.warn('IPs to add: ' + JSON.stringify(ipsToAdd));\nnode.warn('Entries to remove: ' + JSON.stringify(entriesToRemove));\n\n// Update status\nnode.status({\n    fill: \"blue\",\n    shape: \"dot\",\n    text: `To process: Add ${ipsToAdd.length}, Remove ${entriesToRemove.length}`\n});\n\n// Create message for next action \nlet outMsg = {\n    phase: 'remove',  // Start with removes\n    payload: null\n};\n\n// If there are entries to remove, start with first one \nif (entriesToRemove.length > 0) {\n    outMsg.payload = entriesToRemove[0];\n    return outMsg;\n}\n// If no removes but adds exist, switch to add phase \nelse if (ipsToAdd.length > 0) {\n    outMsg.phase = 'add';\n    outMsg.payload = ipsToAdd[0];\n    return outMsg;\n}\n\n// Nothing to do\nif (ipsToAdd.length === 0 && entriesToRemove.length === 0) {\n    stats.status = 'Completed - No changes needed';\n    stats.endTime = new Date().toISOString();\n    flow.set('processStats', stats);\n\n    return {\n        trigger: 'generate_summary',\n        payload: {\n            message: 'No changes required'\n        }\n    };\n}\n\n// Nothing to do \nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 260,
+        "wires": [
+            [
+                "97f14379176cd105",
+                "955188c271fcefc7"
+            ]
+        ]
+    },
+    {
+        "id": "97f14379176cd105",
+        "type": "switch",
+        "z": "47a01a4148ab2766",
+        "name": "Route by Phase",
+        "property": "phase",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "remove",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "add",
+                "vt": "str"
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 2,
+        "x": 420,
+        "y": 540,
+        "wires": [
+            [
+                "843a05a92b02c5e3"
+            ],
+            [
+                "e811f2db6fcef4e4"
+            ]
+        ]
+    },
+    {
+        "id": "843a05a92b02c5e3",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Prepare Remove Command",
+        "func": "if (!msg || !msg.payload || !msg.payload['.id']) {\n    node.warn('Invalid remove command input');\n    return null;\n}\n\nlet newMsg = {\n    phase: 'remove',  // Maintain phase\n    topic: 'write',\n    payload: [\n        '/ip/firewall/address-list/remove',\n        '=.id=' + msg.payload['.id']\n    ]\n};\n\nnode.status({fill:\"blue\", shape:\"dot\", text:`Removing entry ID: ${msg.payload['.id']}`});\nreturn newMsg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 400,
+        "wires": [
+            [
+                "16a241c207f8683e"
+            ]
+        ]
+    },
+    {
+        "id": "e811f2db6fcef4e4",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Prepare Add Command",
+        "func": "if (!msg || !msg.payload || typeof msg.payload !== 'string') {\n    node.warn('Invalid add command input');\n    return null;\n}\n\nlet newMsg = {\n    phase: 'add',  // Maintain phase\n    topic: 'write',\n    payload: [\n        '/ip/firewall/address-list/add',\n        '=address=' + msg.payload,\n        '=list=BLOCKED_USERS',\n        '=comment=added by nodered'\n    ]\n};\n\nnode.status({fill:\"blue\", shape:\"dot\", text:`Adding IP: ${msg.payload}`});\nreturn newMsg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 650,
+        "y": 740,
+        "wires": [
+            [
+                "c578d67a2f6bf0df"
+            ]
+        ]
+    },
+    {
+        "id": "16a241c207f8683e",
+        "type": "mikrotik",
+        "z": "47a01a4148ab2766",
+        "device": "d9322b887566b451",
+        "name": "Execute Remove",
+        "action": "9",
+        "command": "",
+        "command-type": "str",
+        "x": 970,
+        "y": 400,
+        "wires": [
+            [
+                "4522c61e0e74c6ae"
+            ]
+        ]
+    },
+    {
+        "id": "c578d67a2f6bf0df",
+        "type": "mikrotik",
+        "z": "47a01a4148ab2766",
+        "device": "d9322b887566b451",
+        "name": "Execute Add",
+        "action": "9",
+        "command": "",
+        "command-type": "str",
+        "x": 930,
+        "y": 740,
+        "wires": [
+            [
+                "4522c61e0e74c6ae"
+            ]
+        ]
+    },
+    {
+        "id": "4522c61e0e74c6ae",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Check Next Action",
+        "func": "// Get process stats\nlet stats = flow.get('processStats') || {};\n\nlet phase = msg.phase || 'remove';\nlet entriesToRemove = flow.get('entriesToRemove') || [];\nlet ipsToAdd = flow.get('ipsToAdd') || [];\n\n// Update completion counts\nif (phase === 'remove') {\n    stats.completedRemoves++;\n} else {\n    stats.completedAdds++;\n}\n\n// If in remove phase\nif (phase === 'remove') {\n    entriesToRemove.shift();\n    flow.set('entriesToRemove', entriesToRemove);\n    \n    if (entriesToRemove.length > 0) {\n        stats.status = `Removing entries: ${stats.completedRemoves}/${stats.ipsToRemove}`;\n        node.status({fill:\"blue\", shape:\"dot\", text:stats.status});\n        flow.set('processStats', stats);\n        return {\n            phase: 'remove',\n            payload: entriesToRemove[0]\n        };\n    }\n    \n    if (ipsToAdd.length > 0) {\n        stats.status = 'Starting add phase';\n        node.status({fill:\"blue\", shape:\"dot\", text:stats.status});\n        flow.set('processStats', stats);\n        return {\n            phase: 'add',\n            payload: ipsToAdd[0]\n        };\n    }\n}\n\n// If in add phase\nif (phase === 'add') {\n    ipsToAdd.shift();\n    flow.set('ipsToAdd', ipsToAdd);\n    \n    if (ipsToAdd.length > 0) {\n        stats.status = `Adding IPs: ${stats.completedAdds}/${stats.ipsToAdd}`;\n        node.status({fill:\"blue\", shape:\"dot\", text:stats.status});\n        flow.set('processStats', stats);\n        return {\n            phase: 'add',\n            payload: ipsToAdd[0]\n        };\n    }\n}\n\n// Process complete\nstats.status = 'Completed';\nstats.endTime = new Date().toISOString();\nflow.set('processStats', stats);\nnode.status({fill:\"green\", shape:\"dot\", text:\"Process complete\"});\n\n// Return message to trigger summary generation\nreturn { trigger: 'generate_summary' };",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1310,
+        "y": 660,
+        "wires": [
+            [
+                "97f14379176cd105",
+                "5bee388498bf85c2"
+            ]
+        ]
+    },
+    {
+        "id": "5bee388498bf85c2",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Generate Summary",
+        "func": "// Get final stats\nlet stats = flow.get('processStats') || {};\n\n// Only generate summary if process is complete or was already complete\nif (!stats.status.includes('Completed')) {\n    return null;\n}\n\n// Calculate duration\nconst startTime = new Date(stats.startTime);\nconst endTime = new Date(stats.endTime);\nconst duration = (endTime - startTime) / 1000; // in seconds\n\n// Create HTML email content\nconst htmlContent = `\n<h2>MikroTik Address List Synchronization Summary</h2>\n<p>Process completed at: ${endTime.toLocaleString()}</p>\n\n<h3>Processing Statistics:</h3>\n<table style=\"border-collapse: collapse; width: 100%; max-width: 600px;\">\n    <tr style=\"background-color: #f2f2f2;\">\n        <th style=\"border: 1px solid #ddd; padding: 8px; text-align: left;\">Metric</th>\n        <th style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">Count</th>\n    </tr>\n    <tr>\n        <td style=\"border: 1px solid #ddd; padding: 8px;\">Total Suspended IPs</td>\n        <td style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">${stats.suspendedIPs}</td>\n    </tr>\n    <tr>\n        <td style=\"border: 1px solid #ddd; padding: 8px;\">Current Blocked IPs</td>\n        <td style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">${stats.currentBlockedIPs}</td>\n    </tr>\n    <tr>\n        <td style=\"border: 1px solid #ddd; padding: 8px;\">IPs Added</td>\n        <td style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">${stats.completedAdds}</td>\n    </tr>\n    <tr>\n        <td style=\"border: 1px solid #ddd; padding: 8px;\">IPs Removed</td>\n        <td style=\"border: 1px solid #ddd; padding: 8px; text-align: right;\">${stats.completedRemoves}</td>\n    </tr>\n</table>\n\n<h3>Process Details:</h3>\n<ul>\n    <li>Start Time: ${new Date(stats.startTime).toLocaleString()}</li>\n    <li>End Time: ${new Date(stats.endTime).toLocaleString()}</li>\n    <li>Duration: ${duration.toFixed(2)} seconds</li>\n    <li>Final Status: ${stats.status}</li>\n</ul>\n\n<p><em>Note: This is an automated message from the MikroTik Sync Process.</em></p>\n`;\n\n// Create email message with just the content\nmsg.payload = htmlContent;\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1610,
+        "y": 660,
+        "wires": [
+            [
+                "65c79c2f86117e65"
+            ]
+        ]
+    },
+    {
+        "id": "65c79c2f86117e65",
+        "type": "e-mail",
+        "z": "47a01a4148ab2766",
+        "d": true,
+        "server": "mail.smtp2go.com",
+        "port": "2525",
+        "authtype": "BASIC",
+        "saslformat": false,
+        "token": "oauth2Response.access_token",
+        "secure": false,
+        "tls": false,
+        "name": "support@cozinternet.com",
+        "dname": "",
+        "x": 1550,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "5e4866960b98ec1a",
+        "type": "catch",
+        "z": "47a01a4148ab2766",
+        "name": "Process Error Handler",
+        "scope": [
+            "b18133f5c2db106b",
+            "e6c698100829a38c",
+            "16a241c207f8683e",
+            "c578d67a2f6bf0df"
+        ],
+        "uncaught": false,
+        "x": 1180,
+        "y": 280,
+        "wires": [
+            [
+                "232bf3749a7e0ebe"
+            ]
+        ]
+    },
+    {
+        "id": "232bf3749a7e0ebe",
+        "type": "function",
+        "z": "47a01a4148ab2766",
+        "name": "Handle Error",
+        "func": "// Update process stats with error\nlet stats = flow.get('processStats') || {};\nstats.status = 'Error: ' + (msg.error?.message || 'Unknown error');\nstats.endTime = new Date().toISOString();\nflow.set('processStats', stats);\n\n// Create error summary email\nconst htmlContent = `\n<h2>MikroTik Sync Process Error</h2>\n<p>An error occurred during the synchronization process:</p>\n\n<div style=\"background-color: #fff3f3; padding: 15px; border-left: 4px solid #dc3545; margin: 10px 0;\">\n    <strong>Error Details:</strong><br>\n    ${msg.error?.message || 'Unknown error'}<br>\n    Location: ${msg.error?.source?.name || 'Unknown location'}\n</div>\n\n<h3>Process Details:</h3>\n<ul>\n    <li>Start Time: ${new Date(stats.startTime).toLocaleString()}</li>\n    <li>Error Time: ${new Date(stats.endTime).toLocaleString()}</li>\n    <li>Last Status: ${stats.status}</li>\n</ul>\n\n<p><em>Please check the Node-RED logs for more details.</em></p>\n`;\n\nmsg.payload = htmlContent;\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1450,
+        "y": 280,
+        "wires": [
+            [
+                "65c79c2f86117e65"
+            ]
+        ]
+    },
+    {
+        "id": "955188c271fcefc7",
+        "type": "debug",
+        "z": "47a01a4148ab2766",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 800,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "07283834c3fc7ed2",
+        "type": "debug",
+        "z": "47a01a4148ab2766",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1840,
+        "y": 200,
+        "wires": []
+    }
+]

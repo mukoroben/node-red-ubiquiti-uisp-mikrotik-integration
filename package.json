@@ -2,7 +2,11 @@
     "name": "node-red-ucrm-suspended-client-flow",
     "description": "A Node-RED Project",
     "version": "0.0.1",
-    "dependencies": {},
+    "dependencies": {
+        "node-red-contrib-mikrotik": "0.7.0",
+        "node-red-node-email": "3.0.3",
+        "node-red-node-mysql": "2.0.0"
+    },
     "node-red": {
         "settings": {
             "flowFile": "flows.json",
